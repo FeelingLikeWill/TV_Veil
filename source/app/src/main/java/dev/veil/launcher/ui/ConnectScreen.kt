@@ -1,5 +1,7 @@
 package dev.veil.launcher.ui
 
+import android.graphics.Bitmap
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -10,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,7 +31,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -55,18 +61,29 @@ fun ConnectScreen(state: LauncherState) {
                     ClientIdForm(state)
                 } else {
                     if (dc != null) {
-                        Text("On your phone or computer, go to", fontSize = 12.sp, color = Veil.Text.copy(alpha = 0.7f))
-                        Spacer(Modifier.height(4.dp))
-                        Text(dc.url.removePrefix("https://"), fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.height(16.dp))
-                        Text("and enter this code", fontSize = 12.sp, color = Veil.Text.copy(alpha = 0.7f))
-                        Spacer(Modifier.height(10.dp))
-                        Text(
-                            dc.userCode,
-                            color = Veil.Ink, fontSize = 34.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 6.sp,
-                            modifier = Modifier.clip(RoundedCornerShape(50)).background(Veil.Text)
-                                .padding(horizontal = 30.dp, vertical = 8.dp),
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            // Scanning opens Trakt's activate page with the code already filled in.
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                QrCode("${dc.url.trimEnd('/')}/${dc.userCode}", Modifier.size(150.dp))
+                                Spacer(Modifier.height(8.dp))
+                                Text("Scan with your phone", fontSize = 10.sp, color = Veil.Text.copy(alpha = 0.6f))
+                            }
+                            Spacer(Modifier.width(44.dp))
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("Or on your phone or computer, go to", fontSize = 12.sp, color = Veil.Text.copy(alpha = 0.7f))
+                                Spacer(Modifier.height(4.dp))
+                                Text(dc.url.removePrefix("https://"), fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                                Spacer(Modifier.height(16.dp))
+                                Text("and enter this code", fontSize = 12.sp, color = Veil.Text.copy(alpha = 0.7f))
+                                Spacer(Modifier.height(10.dp))
+                                Text(
+                                    dc.userCode,
+                                    color = Veil.Ink, fontSize = 34.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 6.sp,
+                                    modifier = Modifier.clip(RoundedCornerShape(50)).background(Veil.Text)
+                                        .padding(horizontal = 30.dp, vertical = 8.dp),
+                                )
+                            }
+                        }
                         Spacer(Modifier.height(20.dp))
                     }
                     Text(state.connectStatus, fontSize = 11.sp, color = Veil.Text.copy(alpha = 0.7f))
@@ -154,4 +171,28 @@ private fun ClientIdForm(state: LauncherState) {
         delay(120)
         runCatching { field.requestFocus() }
     }
+}
+
+/**
+ * QR code made on the TV (nothing is sent anywhere). Drawn once per code as a tiny bitmap, one pixel per
+ * module, and scaled up without smoothing so it stays sharp. Dark on light with a quiet zone, which every
+ * phone camera reads.
+ */
+@Composable
+private fun QrCode(text: String, modifier: Modifier = Modifier) {
+    val image = remember(text) {
+        runCatching {
+            val m = com.google.zxing.qrcode.QRCodeWriter().encode(
+                text, com.google.zxing.BarcodeFormat.QR_CODE, 0, 0,
+                mapOf(com.google.zxing.EncodeHintType.MARGIN to 2),
+            )
+            val dark = Veil.Ink.toArgb(); val light = Veil.Text.toArgb()
+            val px = IntArray(m.width * m.height) { if (m.get(it % m.width, it / m.width)) dark else light }
+            Bitmap.createBitmap(px, m.width, m.height, Bitmap.Config.ARGB_8888).asImageBitmap()
+        }.getOrNull()
+    } ?: return
+    Image(
+        image, contentDescription = null, filterQuality = FilterQuality.None,
+        modifier = modifier.clip(RoundedCornerShape(12.dp)),
+    )
 }
