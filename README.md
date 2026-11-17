@@ -67,7 +67,8 @@ A TV can't ask for these with a pop-up, so they're granted over ADB (the install
 
 - **No accounts, analytics, ads or Veil servers.** Veil talks directly to these services over HTTPS:
   - **TMDB**: titles of what you're watching, to get artwork.
-  - **Trakt**: your watch progress, read with your own login.
+  - **Trakt**: reads your watch progress with your own login and, only when you ask, marks items watched
+    or removes them from Continue Watching (clears paused progress, hides the show from progress).
   - **Open-Meteo**: your chosen city, for the weather.
   - **LRCLIB**: the song currently playing (title, artist, album, length), to get lyrics.
   - **NextDNS API**: your blocked-tracker stats, if set up.
@@ -95,8 +96,8 @@ See [`AGENT_INSTALL.md`](AGENT_INSTALL.md) for installing, permissions and perfo
 - Built with [Claude Code](https://claude.com/claude-code). Kotlin + Jetpack Compose for TV.
 - Artwork and logos from [TMDB](https://www.themoviedb.org). *This product uses the TMDB API but is not
   endorsed or certified by TMDB.*
-- Watch progress from [Trakt](https://trakt.tv), lyrics from [LRCLIB](https://lrclib.net), weather from
-  [Open-Meteo](https://open-meteo.com) (CC BY 4.0).
+- Watch progress from [Trakt](https://trakt.tv). *Veil uses Trakt but is not endorsed or certified by Trakt.*
+- Lyrics from [LRCLIB](https://lrclib.net), weather from [Open-Meteo](https://open-meteo.com) (CC BY 4.0).
 - [Manrope](https://github.com/sharanda/manrope) font, under the SIL Open Font License 1.1
   ([`licenses/OFL-Manrope.txt`](licenses/OFL-Manrope.txt)).
 - NextDNS, Trakt, TMDB, Spotify and Nuvio are trademarks of their owners. Veil isn't affiliated with any of them.
