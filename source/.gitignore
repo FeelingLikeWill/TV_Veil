@@ -1,0 +1,10 @@
+# Your API keys and machine paths: never commit or share these
+keys.properties
+local.properties
+
+# Build output
+.gradle/
+.kotlin/
+build/
+app/build/
+*.apk

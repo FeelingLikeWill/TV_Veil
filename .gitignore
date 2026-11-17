@@ -1,0 +1,22 @@
+# API keys and machine paths: never commit these
+keys.properties
+local.properties
+
+# Files the install agent creates for your TV (backup + undo script)
+veil-backup.txt
+veil-system-packages.txt
+undo-veil.*
+
+# Build output
+.gradle/
+.kotlin/
+build/
+*.apk
+*.aab
+
+# Editors / OS
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db
