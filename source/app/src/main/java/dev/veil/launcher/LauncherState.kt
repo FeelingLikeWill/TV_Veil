@@ -61,6 +61,9 @@ class LauncherState(private val context: Context, private val scope: CoroutineSc
         private set
     var connectStatus by mutableStateOf("")
         private set
+    /** Connect screen shows the "your own Trakt app" client ID field instead of a sign-in code. */
+    var editingClientId by mutableStateOf(false)
+        private set
     var sheet by mutableStateOf<AppSheet?>(null)
 
     /** Ordered package names pinned to the Home row. */
@@ -494,11 +497,12 @@ class LauncherState(private val context: Context, private val scope: CoroutineSc
     fun startConnect() {
         sheet = null
         if (!trakt.hasKeys) {
-            connectStatus = "Trakt keys are missing from this build."
-            deviceCode = null
+            connectStatus = ""
+            editClientId()
             screen = Screen.CONNECT
             return
         }
+        editingClientId = false
         screen = Screen.CONNECT
         connectStatus = "Getting a code…"
         deviceCode = null
@@ -526,15 +530,36 @@ class LauncherState(private val context: Context, private val scope: CoroutineSc
                     }
                 }
                 connectStatus = "The code expired. Press Back and try again."
+            } catch (e: Trakt.BadClientId) {
+                connectStatus = "Trakt didn't accept this client ID. Check it and enter it again."
+                editClientId()
             } catch (e: Exception) {
                 connectStatus = "Couldn't reach Trakt. Check the network and try again."
             }
         }
     }
 
+    /** Shows the client ID field (stops any sign-in in progress). */
+    fun editClientId() {
+        connectJob?.cancel()
+        deviceCode = null
+        editingClientId = true
+    }
+
+    /** Switches Trakt app (null: back to Veil's shared one), then starts sign-in with it. */
+    fun saveClientId(id: String?) {
+        trakt.setClientId(id)
+        connected = false
+        items = emptyList()
+        focused = null
+        focusedIndex = 0
+        startConnect()
+    }
+
     fun cancelConnect() {
         connectJob?.cancel()
         deviceCode = null
+        editingClientId = false
         screen = Screen.HOME
     }
 

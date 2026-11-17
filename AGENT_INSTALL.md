@@ -102,13 +102,18 @@ Walk them through getting each key:
 
 - **TMDB_KEY** (required, for artwork): themoviedb.org account → Settings → API → request a key
   (Developer, personal use). Use the **v3 "API Key"**, not the long read-access token.
-- **TRAKT_CLIENT_ID** (optional, needed for *Continue watching*):
-  1. trakt.tv → Settings → Your API Apps → New application.
-  2. Any name. Redirect URI: `urn:ietf:wg:oauth:2.0:oob`.
-  3. Copy the **Client ID**. Leave `TRAKT_CLIENT_SECRET` empty: new Trakt apps are PKCE-only.
-  4. They sign in later **on the TV** ("Connect Trakt" on Home shows a code for trakt.tv/activate). Their
-     account never goes into the source. Continue watching opens items in **Nuvio**, which syncs to Trakt;
-     Nuvio must be signed in to the same Trakt account.
+- **Trakt** (for *Continue watching*): **nothing to set up.** Leave `TRAKT_CLIENT_ID`,
+  `TRAKT_CLIENT_SECRET` and `TRAKT_REDIRECT_URI` empty and the build uses Veil's shared Trakt app
+  (`source/trakt.properties`; public on purpose, it has no secret). They sign in later **on the TV**
+  ("Connect Trakt" on Home shows a code for trakt.tv/activate); their account never goes into the source.
+  Continue watching opens items in **Nuvio**, which syncs to Trakt; Nuvio must be signed in to the same
+  Trakt account.
+  - Only if they want **their own Trakt app**: trakt.tv → Settings → Your API Apps → New application, any
+    name, redirect URI `urn:ietf:wg:oauth:2.0:oob`. They can enter its Client ID on the TV (Connect Trakt →
+    *Use your own Trakt app*). Veil saves it on the TV and also writes it to
+    `/sdcard/Android/data/dev.veil.launcher/files/trakt.properties`. When you rebuild, copy it into
+    `keys.properties` so it's built in too: `adb shell cat /sdcard/Android/data/dev.veil.launcher/files/trakt.properties`.
+    Leave `TRAKT_CLIENT_SECRET` empty: new Trakt apps are PKCE-only.
 - **NEXTDNS_PROFILE / NEXTDNS_API_KEY** (optional): my.nextdns.io. The profile ID is in the setup page
   (e.g. `abc123`), the API key at the bottom of the account page. Without them, the privacy switch uses
   AdGuard DNS and doesn't show a blocked counter.
@@ -168,7 +173,7 @@ launcher to "fix" the flash (rule 1).
 
 Guide them through, and confirm each works:
 1. **Home** shows Veil. Press Home inside another app: it comes back to Veil.
-2. **Connect Trakt** (if set up): shows a code, they enter it at trakt.tv/activate, and Continue watching fills in.
+2. **Connect Trakt**: shows a code, they enter it at trakt.tv/activate, and Continue watching fills in.
 3. **Artwork and logos** load. If they're missing, the TMDB key is wrong.
 4. **Apps row**: Veil starts with TizenTube, Nuvio and Spotify pinned. Any of them that isn't installed is
    simply left out (the row always ends with *All apps*). Help them pin their own apps: *All apps* → hold

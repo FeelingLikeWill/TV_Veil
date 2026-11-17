@@ -7,12 +7,42 @@ import java.io.IOException
 
 /** Trakt client using the TV-friendly device-code sign in. Tokens stay in app-private storage. */
 class Trakt(context: Context) {
+    private val app = context.applicationContext
     private val prefs = context.getSharedPreferences("trakt", Context.MODE_PRIVATE)
-    private val clientId = BuildConfig.TRAKT_CLIENT_ID
-    private val secret = BuildConfig.TRAKT_CLIENT_SECRET
+    /** A client ID typed in on the TV. Kept apart from [prefs] so signing out doesn't forget it. */
+    private val appPrefs = context.getSharedPreferences("trakt_app", Context.MODE_PRIVATE)
+    private val ownId: String? get() = appPrefs.getString("client_id", null)?.takeIf { it.isNotBlank() }
+
+    /** Your own Trakt app's ID if you typed one in on the TV, otherwise the one built in (Veil's shared app). */
+    val clientId: String get() = ownId ?: BuildConfig.TRAKT_CLIENT_ID
+    /** True when a client ID typed in on the TV is in use. */
+    val usingOwnId: Boolean get() = ownId != null
+
+    /** The built-in secret and redirect URI only belong to the built-in client ID. */
+    private val secret: String get() = if (usingOwnId) "" else BuildConfig.TRAKT_CLIENT_SECRET
+    private val redirectUri: String
+        get() = if (usingOwnId) OOB else BuildConfig.TRAKT_REDIRECT_URI.ifBlank { OOB }
 
     /** Only the client ID is required. Newer Trakt apps (PKCE, since Oct 2026) don't get a secret. */
     val hasKeys: Boolean get() = clientId.isNotBlank()
+
+    /**
+     * Uses your own Trakt app (null or blank: back to the built-in one). Signs out, since a login belongs to
+     * the app it was made with. Also writes the ID to Android/data/dev.veil.launcher/files/trakt.properties so
+     * it can be copied into keys.properties over ADB.
+     */
+    fun setClientId(id: String?) {
+        val clean = id?.trim().orEmpty()
+        appPrefs.edit().apply { if (clean.isEmpty()) remove("client_id") else putString("client_id", clean) }.apply()
+        disconnect()
+        runCatching {
+            val f = java.io.File(app.getExternalFilesDir(null) ?: return@runCatching, "trakt.properties")
+            if (clean.isEmpty()) f.delete() else f.writeText("TRAKT_CLIENT_ID=$clean\n")
+        }
+    }
+
+    /** Thrown when Trakt rejects the client ID (wrong or deleted Trakt app). */
+    class BadClientId : IOException("Trakt rejected the client ID")
 
     /** Adds client_secret only for older Trakt apps that have one; secret-less apps must omit it. */
     private fun JSONObject.withSecret(): JSONObject = apply { if (secret.isNotBlank()) put("client_secret", secret) }
@@ -33,6 +63,7 @@ class Trakt(context: Context) {
             "POST", "$API/oauth/device/code",
             body = JSONObject().put("client_id", clientId).toString(),
         )
+        if (code == 401 || code == 403) throw BadClientId()
         if (code != 200) throw IOException("Trakt returned $code")
         val j = JSONObject(text)
         return DeviceCode(
@@ -78,7 +109,7 @@ class Trakt(context: Context) {
             body = JSONObject()
                 .put("refresh_token", refresh)
                 .put("client_id", clientId)
-                .put("redirect_uri", "urn:ietf:wg:oauth:2.0:oob")
+                .put("redirect_uri", redirectUri)
                 .put("grant_type", "refresh_token")
                 .withSecret().toString(),
         )
@@ -162,5 +193,9 @@ class Trakt(context: Context) {
         (0 until arr.length()).mapNotNull { arr.getJSONObject(it).obj("show")?.obj("ids")?.int("trakt") }.toSet()
     }.getOrDefault(emptySet())
 
-    companion object { const val API = "https://api.trakt.tv" }
+    companion object {
+        const val API = "https://api.trakt.tv"
+        /** Redirect URI for Development apps. Sign-in uses the device code; only token refresh sends one. */
+        private const val OOB = "urn:ietf:wg:oauth:2.0:oob"
+    }
 }

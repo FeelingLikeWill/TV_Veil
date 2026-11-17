@@ -1,7 +1,10 @@
 # Copy to keys.properties and fill in YOUR OWN keys. Never share or commit keys.properties.
-# Trakt API app (trakt.tv/oauth/applications). New apps are PKCE-only: leave the secret empty.
+# Trakt: leave all three empty to use Veil's shared Trakt app (trakt.properties). Only fill them in to use
+# your own app (trakt.tv/oauth/applications). New apps are PKCE-only: leave the secret empty.
 TRAKT_CLIENT_ID=
 TRAKT_CLIENT_SECRET=
+# Only for your own Production app: the https redirect URI you registered (blank = urn:ietf:wg:oauth:2.0:oob)
+TRAKT_REDIRECT_URI=
 # TMDB API key (v3 "API Key") for artwork
 TMDB_KEY=
 # Optional: NextDNS profile ID + API key for ad blocking via NextDNS and the blocked counter

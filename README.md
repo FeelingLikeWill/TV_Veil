@@ -40,16 +40,19 @@ More in [`screenshots/`](screenshots).
 - An Android TV or Google TV, **Android 9 or newer**, controllable over ADB (developer options).
 - A computer (Windows, macOS or Linux) with JDK 17 and the Android SDK command-line tools. Gradle comes
   with the repo (`source/gradlew`).
-- **Your own free API keys** (the repo contains none):
+- **Your own free API keys** (the repo contains none, apart from Veil's shared Trakt app):
 
 | Key | Needed for | Where |
 |---|---|---|
 | TMDB API key | Artwork and title logos (**required**) | themoviedb.org → Settings → API |
-| Trakt client ID | Continue watching (optional) | trakt.tv/oauth/applications → New app |
+| Trakt client ID | Not needed: Veil's shared Trakt app is built in. Optional, to use your own app | trakt.tv/oauth/applications → New app |
 | NextDNS profile + API key | NextDNS blocking and the blocked counter (optional) | my.nextdns.io |
 
-Keys go in `source/keys.properties` (copy `keys.properties.example`), which git ignores. Your Trakt
-*account* is never put into the app: you sign in on the TV with a code, like any TV app.
+Keys go in `source/keys.properties` (copy `keys.properties.example`), which git ignores. Trakt works
+out of the box through Veil's shared Trakt app (`source/trakt.properties`, public on purpose: it has no
+secret). Your Trakt *account* is never put into the app: you sign in on the TV with a code, like any TV
+app. To use your own Trakt app instead, pick **Use your own Trakt app** on the Connect Trakt screen and
+enter its Client ID with the remote, or set `TRAKT_CLIENT_ID` in `keys.properties`.
 
 ## Permissions, and why
 

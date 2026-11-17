@@ -10,6 +10,15 @@ val keys = Properties().apply {
     // Read as UTF-8 so values like non-English city names (é, ø, ü) survive.
     if (f.exists()) f.reader(Charsets.UTF_8).use { load(it) }
 }
+// Veil's shared Trakt app: the default when keys.properties has no Trakt client ID.
+val sharedTrakt = Properties().apply {
+    val f = rootProject.file("trakt.properties")
+    if (f.exists()) f.reader(Charsets.UTF_8).use { load(it) }
+}
+val ownTrakt = keys.getProperty("TRAKT_CLIENT_ID", "").isNotBlank()
+if (!ownTrakt) listOf("TRAKT_CLIENT_ID", "TRAKT_REDIRECT_URI").forEach { k ->
+    sharedTrakt.getProperty(k)?.let { keys.setProperty(k, it) }
+}
 // Escape non-ASCII as \uXXXX so the generated Java source is encoding-proof.
 fun key(name: String) = "\"" + keys.getProperty(name, "").trim()
     .map { c -> if (c.code > 127) "\\u%04x".format(c.code) else c.toString() }.joinToString("") + "\""
@@ -26,6 +35,7 @@ android {
         versionName = "2.1"
         buildConfigField("String", "TRAKT_CLIENT_ID", key("TRAKT_CLIENT_ID"))
         buildConfigField("String", "TRAKT_CLIENT_SECRET", key("TRAKT_CLIENT_SECRET"))
+        buildConfigField("String", "TRAKT_REDIRECT_URI", key("TRAKT_REDIRECT_URI"))
         buildConfigField("String", "TMDB_KEY", key("TMDB_KEY"))
         buildConfigField("String", "NEXTDNS_PROFILE", key("NEXTDNS_PROFILE"))
         buildConfigField("String", "NEXTDNS_API_KEY", key("NEXTDNS_API_KEY"))
