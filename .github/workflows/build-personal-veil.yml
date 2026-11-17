@@ -1,0 +1,47 @@
+
+name: Build Personal Veil APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install SDK packages
+        run: sdkmanager 'platforms;android-34' 'build-tools;34.0.0' 'platform-tools'
+
+      - name: Configure private TMDB key
+        working-directory: source
+        env:
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+        run: |
+          test -n "$TMDB_API_KEY" || { echo 'Missing TMDB_API_KEY secret'; exit 1; }
+          cp keys.properties.example keys.properties
+          printf '\nTMDB_KEY=%s\n' "$TMDB_API_KEY" >> keys.properties
+
+      - name: Build APK
+        working-directory: source
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Veil-Personal-APK
+          path: source/app/build/outputs/apk/release/app-release.apk
+          retention-days: 30
