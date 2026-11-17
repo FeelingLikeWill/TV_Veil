@@ -1,6 +1,11 @@
 name: Build Personal Veil APK
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'source/**'
+      - '.github/workflows/build-personal-veil.yml'
   workflow_dispatch:
     inputs:
       validate_only:
@@ -30,12 +35,12 @@ jobs:
           packages: platforms;android-34 build-tools;34.0.0
 
       - name: Build release for validation
-        if: inputs.validate_only
+        if: github.event_name == 'push' || inputs.validate_only
         working-directory: source
         run: ./gradlew --no-daemon testReleaseUnitTest assembleRelease
 
       - name: Build and verify personal APK
-        if: ${{ !inputs.validate_only }}
+        if: github.event_name == 'workflow_dispatch' && !inputs.validate_only
         working-directory: source
         env:
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
@@ -80,7 +85,7 @@ jobs:
           7z t -p"$TMDB_API_KEY" "$archive"
 
       - name: Upload encrypted personal APK
-        if: ${{ !inputs.validate_only }}
+        if: github.event_name == 'workflow_dispatch' && !inputs.validate_only
         uses: actions/upload-artifact@v4
         with:
           name: Veil-Personal
