@@ -1,47 +1,89 @@
-
 name: Build Personal Veil APK
 
 on:
   workflow_dispatch:
+    inputs:
+      validate_only:
+        description: Run unit tests and build without credentials or upload
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
       - uses: android-actions/setup-android@v3
+        with:
+          packages: platforms;android-34 build-tools;34.0.0
 
-      - name: Install SDK packages
-        run: sdkmanager 'platforms;android-34' 'build-tools;34.0.0' 'platform-tools'
+      - name: Build release for validation
+        if: inputs.validate_only
+        working-directory: source
+        run: ./gradlew --no-daemon testReleaseUnitTest assembleRelease
 
-      - name: Configure private TMDB key
+      - name: Build and verify personal APK
+        if: ${{ !inputs.validate_only }}
         working-directory: source
         env:
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          VEIL_SIGNING_BUNDLE: ${{ secrets.VEIL_SIGNING_BUNDLE }}
         run: |
-          test -n "$TMDB_API_KEY" || { echo 'Missing TMDB_API_KEY secret'; exit 1; }
-          cp keys.properties.example keys.properties
-          printf '\nTMDB_KEY=%s\n' "$TMDB_API_KEY" >> keys.properties
+          set -euo pipefail
+          if [[ ! "$TMDB_API_KEY" =~ ^[[:xdigit:]]{32}$ ]]; then
+            echo 'Configure TMDB_API_KEY with a TMDB v3 API key.'
+            exit 1
+          fi
+          if [[ -z "$VEIL_SIGNING_BUNDLE" ]]; then
+            echo 'Configure the persistent VEIL_SIGNING_BUNDLE secret before publishing.'
+            exit 1
+          fi
 
-      - name: Build APK
-        working-directory: source
-        run: |
-          chmod +x gradlew
-          ./gradlew --no-daemon assembleRelease
+          umask 077
+          signing_dir="$(mktemp -d)"
+          trap 'rm -rf "$signing_dir"' EXIT
+          read -r VEIL_KEYSTORE_PASSWORD encoded_keystore <<< "$VEIL_SIGNING_BUNDLE"
+          echo "::add-mask::$VEIL_KEYSTORE_PASSWORD"
+          export VEIL_KEYSTORE_PASSWORD
+          export VEIL_KEYSTORE_PATH="$signing_dir/veil.p12"
+          printf '%s' "$encoded_keystore" | base64 --decode > "$VEIL_KEYSTORE_PATH"
+          unset VEIL_SIGNING_BUNDLE encoded_keystore
 
-      - name: Upload APK
+          ./gradlew --no-daemon testReleaseUnitTest assembleRelease
+
+          apk=app/build/outputs/apk/release/Veil-Personal.apk
+          mv app/build/outputs/apk/release/app-release.apk "$apk"
+          tools="$ANDROID_HOME/build-tools/34.0.0"
+          "$tools/apksigner" verify --min-sdk-version 28 --verbose --print-certs "$apk"
+          "$tools/aapt" dump badging "$apk" > "$signing_dir/badging.txt"
+          grep -Fx "sdkVersion:'28'" "$signing_dir/badging.txt"
+          grep -F "leanback-launchable-activity: name='dev.veil.launcher.MainActivity'" "$signing_dir/badging.txt"
+
+          # The APK embeds the TMDB key. Encrypt the inner ZIP before uploading to the public repository.
+          archive="$PWD/Veil-Personal-encrypted.zip"
+          (
+            cd "$(dirname "$apk")"
+            7z a -mem=AES256 -p"$TMDB_API_KEY" "$archive" Veil-Personal.apk
+          )
+          7z t -p"$TMDB_API_KEY" "$archive"
+
+      - name: Upload encrypted personal APK
+        if: ${{ !inputs.validate_only }}
         uses: actions/upload-artifact@v4
         with:
-          name: Veil-Personal-APK
-          path: source/app/build/outputs/apk/release/app-release.apk
+          name: Veil-Personal
+          path: source/Veil-Personal-encrypted.zip
+          if-no-files-found: error
           retention-days: 30

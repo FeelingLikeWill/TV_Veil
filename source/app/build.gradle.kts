@@ -10,6 +10,12 @@ val keys = Properties().apply {
     // Read as UTF-8 so values like non-English city names (é, ø, ü) survive.
     if (f.exists()) f.reader(Charsets.UTF_8).use { load(it) }
 }
+providers.environmentVariable("TMDB_API_KEY").orNull?.let {
+    keys.setProperty("TMDB_KEY", it)
+}
+
+val personalKeystore = providers.environmentVariable("VEIL_KEYSTORE_PATH").orNull
+
 // Veil's shared Trakt app: the default when keys.properties has no Trakt client ID.
 val sharedTrakt = Properties().apply {
     val f = rootProject.file("trakt.properties")
@@ -44,12 +50,22 @@ android {
         buildConfigField("boolean", "LITE_MODE", (keys.getProperty("LITE_MODE", "false").trim() == "true").toString())
     }
 
+    if (personalKeystore != null) {
+        signingConfigs.create("personal") {
+            storeFile = file(personalKeystore)
+            storeType = "PKCS12"
+            storePassword = providers.environmentVariable("VEIL_KEYSTORE_PASSWORD").get()
+            keyAlias = "veil"
+            keyPassword = storePassword
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName(if (personalKeystore == null) "debug" else "personal")
         }
     }
     compileOptions {
